@@ -1,0 +1,411 @@
+Berikut prompt yang bisa Anda berikan ke AI coding assistant (Claude Code, GPT, Gemini, Cursor, Windsurf, dll.) untuk membuat aplikasi tersebut:
+
+---
+
+# Prompt
+
+Buatkan aplikasi desktop modern bernama **Studio Visualizer** menggunakan framework dan library yang sesuai untuk performa tinggi. Aplikasi terinspirasi dari visualizer musik profesional dan memanfaatkan engine dari repository Studio:
+
+[Studio GitHub Repository](https://github.com/hibuno/studio?utm_source=chatgpt.com)
+
+Gunakan repository tersebut sebagai dasar rendering dan visual effects jika memungkinkan.
+
+## Tujuan Aplikasi
+
+Aplikasi digunakan untuk membuat video visualizer musik untuk YouTube, playlist musik, lagu nostalgia, lo-fi, podcast, dan konten audio lainnya.
+
+Fokus pada kemudahan penggunaan, performa tinggi, preview real-time, dan rendering video berkualitas tinggi.
+
+---
+
+# Persyaratan Umum
+
+* UI modern dan responsif
+* Dark Mode default
+* Multi-platform (Windows prioritas)
+* Preview real-time
+* Drag and drop support
+* Rendering menggunakan GPU jika tersedia
+* Arsitektur modular dan extensible
+* Semua konfigurasi dapat disimpan sebagai project
+
+---
+
+# Format Canvas Default
+
+Default canvas:
+
+* Aspect Ratio: 16:9
+* Resolusi default: 1920x1080
+* FPS default: 60
+
+
+Preset tambahan:
+
+* 1280x720
+* 1920x1080
+* 2560x1440
+* 3840x2160
+* 1080x1920 (Shorts)
+* 1080x1080
+
+---
+
+# Fitur Audio
+
+## Import Audio
+
+Mendukung:
+
+* MP3
+* WAV
+* FLAC
+* AAC
+* OGG
+
+Fitur:
+
+* Drag and drop
+* Audio preview
+* Menampilkan durasi
+* Waveform preview
+* Audio analyzer real-time
+
+---
+
+# Spectrum Visualizer
+
+Sediakan beberapa tipe visualizer:
+
+### Bar Spectrum
+
+* Vertical
+* Horizontal
+* Mirrored
+
+### Circular Spectrum
+
+* Full Circle
+* Half Circle
+
+### Waveform
+
+* Linear waveform
+* Circular waveform
+
+### Line Spectrum
+
+### Radial Spectrum
+
+### Particle Reactive Spectrum
+
+Pengaturan:
+
+* Jumlah bar
+* Width
+* Height
+* Gap
+* Sensitivity
+* Smoothing
+* Frequency range
+* Bass boost
+* Treble boost
+* Color control
+
+---
+
+# Cover Art
+
+Mendukung:
+
+* JPG
+* PNG
+* WEBP
+
+Mode:
+
+* Circle
+* Square
+* Rounded
+
+Efek:
+
+* Glow
+* Shadow
+* Rotation
+* Beat Scale
+* Pulse Effect
+
+---
+
+# Background System
+
+## Static Image
+
+* JPG
+* PNG
+* WEBP
+
+## Video Background
+
+* MP4
+* MOV
+* WEBM
+
+## Gradient Background
+
+* Linear
+* Radial
+
+## Solid Color
+
+---
+
+# Asset Effect System
+
+Sediakan sistem asset yang dapat ditambahkan sebagai layer.
+
+## Weather Effects
+
+* Rain
+* Heavy Rain
+* Snow
+* Blizzard
+* Fog
+* Mist
+* Thunder
+* Lightning
+
+## Particle Effects
+
+* Dust
+* Spark
+* Fireflies
+* Floating Lights
+* Bokeh
+* Stars
+* Galaxy
+* Smoke
+
+## Nature Effects
+
+* Falling Leaves
+* Sakura Petals
+* Flower Particles
+* Clouds
+
+## Abstract Effects
+
+* Neon Particles
+* Energy Lines
+* Light Rays
+* Glowing Shapes
+
+Setiap asset memiliki:
+
+* Opacity
+* Scale
+* Speed
+* Direction
+* Blend Mode
+* Loop
+* Layer Ordering
+
+---
+
+# Layer System
+
+Semua elemen menggunakan layer.
+
+Contoh:
+
+Layer 1:
+Background
+
+Layer 2:
+Video Background
+
+Layer 3:
+Rain Effect
+
+Layer 4:
+Particles
+
+Layer 5:
+Cover Art
+
+Layer 6:
+Spectrum
+
+Layer 7:
+Text
+
+Layer 8:
+Overlay
+
+Fitur:
+
+* Reorder Layer
+* Hide Layer
+* Lock Layer
+* Duplicate Layer
+* Delete Layer
+
+---
+
+# Text System
+
+Mendukung:
+
+* Judul Lagu
+* Nama Artis
+* Nama Album
+* Nama Channel
+
+Fitur:
+
+* Custom Font
+* Font Upload
+* Shadow
+* Outline
+* Glow
+* Gradient Text
+
+Animasi:
+
+* Fade
+* Slide
+* Scale
+* Pulse
+
+---
+
+# Preset Theme
+
+Sediakan preset bawaan:
+
+* Minimal Dark
+* Neon Blue
+* Neon Purple
+* Lo-Fi Night
+* Retro Wave
+* EDM Stage
+* Synthwave
+* Cyberpunk
+* Gold Luxury
+* Vintage Music
+* Tembang Kenangan
+* Podcast
+
+Pengguna dapat membuat preset sendiri.
+
+---
+
+# Beat Reactive Engine
+
+Semua elemen dapat bereaksi terhadap audio.
+
+Parameter:
+
+* Scale by Beat
+* Rotation by Beat
+* Opacity by Beat
+* Glow by Beat
+* Particle Emission by Beat
+
+Sediakan editor parameter untuk menghubungkan audio frequency dengan objek visual.
+
+---
+
+# Project System
+
+Mendukung:
+
+* New Project
+* Save Project
+* Load Project
+* Auto Save
+* Export Project Template
+
+Format project:
+
+```json
+{
+  "audio": "",
+  "layers": [],
+  "effects": [],
+  "visualizer": {},
+  "export": {}
+}
+```
+
+---
+
+# Export System
+
+Format:
+
+* MP4
+* MOV
+* WEBM
+
+Codec:
+
+* H264
+* H265
+
+Resolusi:
+
+* 720p
+* 1080p
+
+
+FPS:
+
+* 30
+* 60
+
+Quality:
+
+
+* High
+* Ultra
+
+---
+
+# Struktur Kode
+
+Gunakan arsitektur modular:
+
+```text
+src/
+ ├─ audio/
+ ├─ visualizer/
+ ├─ effects/
+ ├─ assets/
+ ├─ renderer/
+ ├─ export/
+ ├─ project/
+ ├─ ui/
+ └─ presets/
+```
+
+---
+
+# Fokus Pengembangan
+
+Prioritas implementasi:
+
+1. Import Audio
+2. Real-time Spectrum Visualizer
+3. Background System
+4. Asset Effect System (Rain, Snow, Particle, Fog)
+5. Cover Art
+6. Layer System
+7. Text System
+8. Beat Reactive Engine
+9. Preset Theme
+10. Export Video
+11. timeline layer
+
+Hasil akhir harus berupa aplikasi visualizer musik profesional yang mudah digunakan untuk membuat video YouTube playlist musik, lagu nostalgia, lo-fi, podcast, dan audio visualizer berkualitas tinggi dengan performa rendering yang optimal.
