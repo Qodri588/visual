@@ -115,7 +115,11 @@ export default function StudioCanvas(props: Props) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })!
+    const visibleCtx = canvas.getContext('2d', { alpha: false })!
+    const renderCanvas = document.createElement('canvas')
+    renderCanvas.width = canvas.width
+    renderCanvas.height = canvas.height
+    const ctx = renderCanvas.getContext('2d', { alpha: false })!
     const frequency = new Uint8Array(analyser?.frequencyBinCount || 1024)
     const waveform = new Uint8Array(analyser?.fftSize || 2048)
     let frame = 0
@@ -134,12 +138,17 @@ export default function StudioCanvas(props: Props) {
       const selectedLayer = selectedLayerRef.current
       const exporting = exportingRef.current
       if (document.hidden && !exporting) return
-      const targetFps = exporting || playingRef.current ? project.fps : Math.min(15, project.fps)
+      const targetFps = exporting || playingRef.current ? project.fps : Math.min(6, project.fps)
       const frameInterval = 1000 / targetFps
       if (lastRenderTime && timestamp - lastRenderTime < frameInterval - .5) return
       lastRenderTime = timestamp - ((timestamp - lastRenderTime) % frameInterval)
       frame += 1
       const w = canvas.width, h = canvas.height
+      if (renderCanvas.width !== w || renderCanvas.height !== h) {
+        renderCanvas.width = w
+        renderCanvas.height = h
+        ambient = null
+      }
       const mediaLayer = layersByKind.get('media')
       const effectLayer = layersByKind.get('effect')
       const cover = layersByKind.get('cover')
@@ -205,11 +214,13 @@ export default function StudioCanvas(props: Props) {
           if (media instanceof HTMLVideoElement) {
             media.preload = 'auto'
             if (media.playbackRate !== asset.playbackRate) media.playbackRate = asset.playbackRate
-            if (media.paused) media.play().catch(() => undefined)
+            const shouldPlayMedia = exporting || playingRef.current
+            if (shouldPlayMedia && media.paused) media.play().catch(() => undefined)
+            else if (!shouldPlayMedia && !(runtime instanceof HTMLImageElement)) runtime.videos.forEach(video => { if (!video.paused) video.pause() })
             if (Number.isFinite(media.duration) && media.duration > 0) {
               const lead = Math.min(Math.max(asset.loopTransitionDuration, .35), media.duration / 3)
               const remaining = media.duration - media.currentTime
-              if (remaining <= lead && !(runtime instanceof HTMLImageElement) && !runtime.preparing) {
+              if (shouldPlayMedia && remaining <= lead && !(runtime instanceof HTMLImageElement) && !runtime.preparing) {
                 const standby = runtime.videos[runtime.active === 0 ? 1 : 0]
                 runtime.preparing = true; standby.preload = 'auto'; standby.playbackRate = asset.playbackRate; standby.currentTime = 0
                 standby.play().catch(() => { runtime.preparing = false })
@@ -365,7 +376,7 @@ export default function StudioCanvas(props: Props) {
         if (project.imageReactiveEffect === 'contrast') ctx.filter = `contrast(${1 + bass * project.imageReactionAmount * 2}) saturate(${1 + bass})`
         if (project.coverShape === 'circle') { ctx.beginPath(); ctx.arc(coverX, coverY, baseSize / 2, 0, Math.PI * 2); ctx.clip() }
         else { pathRoundedRect(ctx, x, y, baseSize, baseSize, project.coverShape === 'rounded' ? 28 : 0); ctx.clip() }
-        if (coverRef.current?.complete) ctx.drawImage(coverRef.current, x, y, baseSize, baseSize)
+        if (coverRef.current?.complete && coverRef.current.naturalWidth > 0) ctx.drawImage(coverRef.current, x, y, baseSize, baseSize)
         else {
           const coverGrad = ctx.createLinearGradient(x, y, x + baseSize, y + baseSize)
           coverGrad.addColorStop(0, project.visualizerColor); coverGrad.addColorStop(1, '#131521')
@@ -467,6 +478,7 @@ export default function StudioCanvas(props: Props) {
         ctx.restore()
       }
       ctx.globalAlpha = 1; ctx.filter = 'none'
+      visibleCtx.drawImage(renderCanvas, 0, 0)
       if (exporting) exportTrackRef.current?.requestFrame()
     }
     render()

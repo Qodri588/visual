@@ -20,6 +20,8 @@ const formatTime = (seconds: number) => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
+const TIMELINE_PEAKS = Array.from({ length: 115 }, (_, i) => 7 + Math.abs(Math.sin(i * .38) * 18 + Math.sin(i * .1) * 12))
+
 const iconFor = (kind: Layer['kind']) => ({
   media: Video, effect: Sparkles, cover: FileImage, spectrum: AudioLines, text: Type,
 }[kind])
@@ -31,7 +33,7 @@ export default function App() {
   const [coverUrl, setCoverUrl] = useState<string | null>(null)
   const [backgroundAssets, setBackgroundAssets] = useState<BackgroundAsset[]>([])
   const [selectedBackgroundAsset, setSelectedBackgroundAsset] = useState('')
-  const [zoom, setZoom] = useState(76)
+  const [zoom, setZoom] = useState(100)
   const [exporting, setExporting] = useState(false)
   const [exportPaused, setExportPaused] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
@@ -148,27 +150,35 @@ export default function App() {
     const chunks: Blob[] = []
     let writeQueue = Promise.resolve()
     recorderRef.current = recorder; exportCancelled.current = false
-    recorder.ondataavailable = event => { if (!event.data.size) return; if (fileWriter) writeQueue = writeQueue.then(() => fileWriter!.write(event.data)); else chunks.push(event.data) }
+    recorder.ondataavailable = event => {
+      if (!event.data.size) return
+      if (fileWriter) writeQueue = writeQueue.then(() => fileWriter!.write(event.data))
+      else chunks.push(event.data)
+    }
     recorder.onerror = () => { exportCancelled.current = true; audio.pause(); window.alert('Encoder berhenti karena error. Coba turunkan resolusi atau kualitas export.') }
     recorder.onstop = async () => {
       stream.getVideoTracks().forEach(track => track.stop())
       exportTrackRef.current = null
-      await writeQueue
-      if (fileWriter) {
-        if (exportCancelled.current && fileWriter.abort) await fileWriter.abort()
-        else await fileWriter.close()
-      } else if (!exportCancelled.current && chunks.length) {
-        const output = new Blob(chunks, { type: mimeType })
-        if (!exportCancelled.current) {
-          if (saveHandle) {
-            const writer = await saveHandle.createWritable(); await writer.write(output); await writer.close()
-          } else {
-            const url = URL.createObjectURL(output)
-            const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${cleanName}.webm`; anchor.click()
-            window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      try {
+        await writeQueue
+        if (fileWriter) {
+          if (exportCancelled.current && fileWriter.abort) await fileWriter.abort()
+          else await fileWriter.close()
+        } else if (!exportCancelled.current && chunks.length) {
+          const output = new Blob(chunks, { type: mimeType })
+          if (!exportCancelled.current) {
+            if (saveHandle) {
+              const writer = await saveHandle.createWritable(); await writer.write(output); await writer.close()
+            } else {
+              const url = URL.createObjectURL(output)
+              const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${cleanName}.webm`; anchor.click()
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+            }
+            setExportProgress(100)
           }
-          setExportProgress(100)
         }
+      } catch (error) {
+        window.alert(`Export gagal: ${String(error)}`)
       }
       recorderRef.current = null
       setExportPaused(false)
@@ -252,7 +262,7 @@ export default function App() {
           <div className="stage-toolbar">
             <div className="toolbar-group"><button className="tool selected"><MousePointer2 size={16} /></button><button className="tool"><Menu size={16} /></button></div>
             <div className="canvas-meta"><Monitor size={15} /> {project.resolution} <span /> {project.fps} FPS</div>
-            <div className="zoom-tools"><button onClick={() => setZoom(z => Math.max(40, z - 8))}><ZoomOut size={15} /></button><span>{zoom}%</span><button onClick={() => setZoom(z => Math.min(110, z + 8))}><ZoomIn size={15} /></button></div>
+            <div className="zoom-tools"><button onClick={() => setZoom(z => Math.max(50, z - 10))} title="Zoom out"><ZoomOut size={15} /></button><button className="zoom-value" onClick={() => setZoom(100)} title="Reset to 100%">{zoom}%</button><button onClick={() => setZoom(z => Math.min(125, z + 10))} title="Zoom in"><ZoomIn size={15} /></button></div>
           </div>
           <div className="canvas-wrap">
             <div className={`canvas-shell${exporting ? ' export-active' : ''}`} style={{ width: `${zoom}%`, aspectRatio: project.resolution.replace(' x ', ' / ') }}><StudioCanvas canvasRef={canvasRef} exportTrackRef={exportTrackRef} project={project} analyser={analyserRef.current} audioClock={audioRef} playing={playing} exporting={exporting} coverUrl={coverUrl} backgroundAssets={backgroundAssets} selectedLayer={exporting ? '' : selectedLayer} onSelectLayer={setSelectedLayer} onLayerChange={updateLayer} /></div>
@@ -309,8 +319,7 @@ function ElementControls({ layer, onChange }: { layer?: Layer; onChange: (values
 
 function Timeline({ current, duration, playing, onToggle, onSeek }: { current: number; duration: number; playing: boolean; onToggle: () => void; onSeek: (v: number) => void }) {
   const safeDuration = duration || 224
-  const peaks = Array.from({ length: 115 }, (_, i) => 7 + Math.abs(Math.sin(i * .38) * 18 + Math.sin(i * .1) * 12))
-  return <div className="timeline"><div className="transport"><button><Minus size={14} /></button><button className="play-button" onClick={onToggle}>{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button><button><Volume2 size={15} /></button><span className="timecode">{formatTime(current)} <i>/</i> {formatTime(safeDuration)}</span></div><div className="wave-track" onClick={e => { const r = e.currentTarget.getBoundingClientRect(); onSeek((e.clientX-r.left)/r.width*safeDuration) }}><div className="waveform">{peaks.map((p,i) => <i key={i} style={{ height: p }} className={i / peaks.length < current / safeDuration ? 'passed' : ''} />)}</div><div className="playhead" style={{ left: `${current / safeDuration * 100}%` }}><span /></div></div><div className="timeline-actions"><button><ZoomOut size={14} /></button><input type="range" defaultValue="55" /><button><ZoomIn size={14} /></button></div></div>
+  return <div className="timeline"><div className="transport"><button><Minus size={14} /></button><button className="play-button" onClick={onToggle}>{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button><button><Volume2 size={15} /></button><span className="timecode">{formatTime(current)} <i>/</i> {formatTime(safeDuration)}</span></div><div className="wave-track" onClick={e => { const r = e.currentTarget.getBoundingClientRect(); onSeek((e.clientX-r.left)/r.width*safeDuration) }}><div className="waveform">{TIMELINE_PEAKS.map((p,i) => <i key={i} style={{ height: p }} className={i / TIMELINE_PEAKS.length < current / safeDuration ? 'passed' : ''} />)}</div><div className="playhead" style={{ left: `${current / safeDuration * 100}%` }}><span /></div></div><div className="timeline-actions"><button><ZoomOut size={14} /></button><input type="range" defaultValue="55" /><button><ZoomIn size={14} /></button></div></div>
 }
 
 function SelectRow({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) { return <label className="control-row"><span>{label}</span><select value={value} onChange={e => onChange(e.target.value)}>{options.map(o => <option key={o}>{o}</option>)}</select></label> }
