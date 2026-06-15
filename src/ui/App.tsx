@@ -121,20 +121,6 @@ export default function App() {
     const endTime = project.exportEndTime > startTime ? Math.min(project.exportEndTime, audio.duration) : audio.duration
     if (!Number.isFinite(endTime) || endTime <= startTime) { window.alert('Start time dan end time export tidak valid.'); return }
     const cleanName = (project.exportFileName || project.title || 'studio-visualizer').replace(/[<>:"/\\|?*]+/g, '-').replace(/\.webm$/i, '').trim() || 'studio-visualizer'
-    type SaveWriter = { write: (data: Blob) => Promise<void>; close: () => Promise<void>; abort?: () => Promise<void> }
-    type SaveHandle = { createWritable: () => Promise<SaveWriter> }
-    let fileWriter: SaveWriter | null = null
-    let saveHandle: SaveHandle | null = null
-    const picker = (window as Window & { showSaveFilePicker?: (options: object) => Promise<SaveHandle> }).showSaveFilePicker
-    if (picker) {
-      try {
-        saveHandle = await picker({ suggestedName: `${cleanName}.webm`, types: [{ description: 'WebM video', accept: { 'video/webm': ['.webm'] } }] })
-        fileWriter = await saveHandle.createWritable()
-      } catch (error) {
-        if ((error as DOMException).name === 'AbortError') return
-        window.alert('Lokasi penyimpanan tidak dapat dibuka.'); return
-      }
-    }
     setExporting(true)
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     const canvas = canvasRef.current
@@ -148,32 +134,22 @@ export default function App() {
     stream.getVideoTracks().forEach(track => { track.contentHint = 'motion' })
     const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond })
     const chunks: Blob[] = []
-    let writeQueue = Promise.resolve()
     recorderRef.current = recorder; exportCancelled.current = false
     recorder.ondataavailable = event => {
       if (!event.data.size) return
-      if (fileWriter) writeQueue = writeQueue.then(() => fileWriter!.write(event.data))
-      else chunks.push(event.data)
+      chunks.push(event.data)
     }
     recorder.onerror = () => { exportCancelled.current = true; audio.pause(); window.alert('Encoder berhenti karena error. Coba turunkan resolusi atau kualitas export.') }
     recorder.onstop = async () => {
       stream.getVideoTracks().forEach(track => track.stop())
       exportTrackRef.current = null
       try {
-        await writeQueue
-        if (fileWriter) {
-          if (exportCancelled.current && fileWriter.abort) await fileWriter.abort()
-          else await fileWriter.close()
-        } else if (!exportCancelled.current && chunks.length) {
+        if (!exportCancelled.current && chunks.length) {
           const output = new Blob(chunks, { type: mimeType })
           if (!exportCancelled.current) {
-            if (saveHandle) {
-              const writer = await saveHandle.createWritable(); await writer.write(output); await writer.close()
-            } else {
-              const url = URL.createObjectURL(output)
-              const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${cleanName}.webm`; anchor.click()
-              window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-            }
+            const url = URL.createObjectURL(output)
+            const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${cleanName}.webm`; anchor.click()
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000)
             setExportProgress(100)
           }
         }
