@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useAudioAnalyzer } from '../audio/useAudioAnalyzer'
 import { effectPresets, presets } from '../presets'
-import { defaultProject, type BackgroundAsset, type Layer, type ProjectSettings } from '../project/types'
+import { createDefaultProject, type BackgroundAsset, type Layer, type ProjectSettings } from '../project/types'
 import StudioCanvas from '../renderer/StudioCanvas'
 
 type Tab = 'media' | 'visualizer' | 'effects' | 'text' | 'presets'
@@ -27,7 +27,7 @@ const iconFor = (kind: Layer['kind']) => ({
 }[kind])
 
 export default function App() {
-  const [project, setProject] = useState<ProjectSettings>(defaultProject)
+  const [project, setProject] = useState<ProjectSettings>(createDefaultProject)
   const [tab, setTab] = useState<Tab>('media')
   const [selectedLayer, setSelectedLayer] = useState('spectrum')
   const [coverUrl, setCoverUrl] = useState<string | null>(null)
@@ -59,9 +59,9 @@ export default function App() {
     patch({
       effect: pick(['particles','rain','heavy-rain','snow','blizzard','fog','stars','fireflies'] as const),
       effectAmount: .45 + Math.random() * 1.25, effectSpeed: .25 + Math.random() * 2.5,
-      effectSize: .5 + Math.random() * 2, effectDirection: pick(['random','up','down','left','right','up-left','up-right','down-left','down-right','center-out','edges-in'] as const),
+      effectSize: 1 + Math.random() * 2, effectDirection: pick(['random','up','down','left','right','up-left','up-right','down-left','down-right','center-out','edges-in'] as const),
       effectOrigin: pick(['random','top','bottom','left','right','center','full'] as const), effectOpacity: .6 + Math.random() * .4,
-      effectGlossy: Math.random(), effectSizeMode: pick(['fixed','random'] as const), effectBeatReactive: Math.random() > .35,
+      effectGlossy: Math.random(), effectSizeMode: pick(['fixed','random'] as const), effectBeatReactive: true,
       effectReactiveSource: pick(['bass','mid','full'] as const), effectColorMode: pick(['palette','rainbow'] as const), effectColors: [color(), color(), color()],
     })
     setSelectedLayer('particles')
@@ -105,8 +105,9 @@ export default function App() {
   const loadProject = async (file: File) => {
     try {
       const loaded = JSON.parse(await file.text()) as Partial<ProjectSettings>
-      const layers = defaultProject.layers.map(base => ({ ...base, ...(loaded.layers?.find(layer => layer.id === base.id) || {}) }))
-      setProject({ ...defaultProject, ...loaded, layers })
+      const base = createDefaultProject()
+      const layers = base.layers.map(layer => ({ ...layer, ...(loaded.layers?.find(l => l.id === layer.id) || {}) }))
+      setProject({ ...base, ...loaded, layers })
     }
     catch { window.alert('Project file is not valid JSON.') }
   }
@@ -213,15 +214,15 @@ export default function App() {
         <div className="project-title"><span className="status-dot" /> Untitled Project <ChevronDown size={13} /></div>
         <div className="header-actions">
           <button className="icon-button"><Undo2 size={16} /></button><button className="icon-button disabled"><Redo2 size={16} /></button>
-          <span className="separator" /><button className="top-button" onClick={() => projectInput.current?.click()}><FolderOpen size={15} /> Open</button>
-          <button className="top-button" onClick={saveProject}><Save size={15} /> Save</button>
-          <button className="export-button" onClick={runExport}><Download size={15} /> Export</button>
+          <span className="separator" /><button className="top-button" data-testid="btn-open-project" onClick={() => projectInput.current?.click()}><FolderOpen size={15} /> Open</button>
+          <button className="top-button" data-testid="btn-save-project" onClick={saveProject}><Save size={15} /> Save</button>
+          <button className="export-button" data-testid="btn-export" onClick={runExport}><Download size={15} /> Export</button>
         </div>
       </header>
 
       <div className="workspace">
         <nav className="toolrail">
-          {tabs.map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={19} /><span>{item.label}</span></button>)}
+          {tabs.map(item => <button key={item.id} data-testid={`tab-${item.id}`} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={19} /><span>{item.label}</span></button>)}
           <div className="rail-spacer" /><button><Settings2 size={19} /><span>Settings</span></button>
         </nav>
 
@@ -249,7 +250,7 @@ export default function App() {
 
         <aside className="inspector-panel">
           <div className="inspector-tabs"><button className="active">Properties</button><button>Animation</button></div>
-          <section><div className="section-title"><span>Export WebM</span><ChevronDown size={14} /></div><TextRow label="File name" value={project.exportFileName} onChange={exportFileName => patch({ exportFileName })} /><TimeRow label="Start time" value={project.exportStartTime} max={duration} onChange={exportStartTime => patch({ exportStartTime })} /><TimeRow label="End time" value={project.exportEndTime} max={duration} placeholder={duration ? `Full (${formatTime(duration)})` : 'Full audio'} onChange={exportEndTime => patch({ exportEndTime })} /><ToggleRow label="Include audio" value={project.exportIncludeAudio} onChange={exportIncludeAudio => patch({ exportIncludeAudio })} /><SelectRow label="Quality" value={project.exportQuality} options={['standard','high']} onChange={exportQuality => patch({ exportQuality: exportQuality as ProjectSettings['exportQuality'] })} /></section>
+          <section><div className="section-title"><span>Export WebM</span><ChevronDown size={14} /></div><TextRow label="File name" value={project.exportFileName} onChange={exportFileName => patch({ exportFileName })} dataTestId="input-export-filename" /><TimeRow label="Start time" value={project.exportStartTime} max={duration} onChange={exportStartTime => patch({ exportStartTime })} /><TimeRow label="End time" value={project.exportEndTime} max={duration} placeholder={duration ? `Full (${formatTime(duration)})` : 'Full audio'} onChange={exportEndTime => patch({ exportEndTime })} /><ToggleRow label="Include audio" value={project.exportIncludeAudio} onChange={exportIncludeAudio => patch({ exportIncludeAudio })} /><SelectRow label="Quality" value={project.exportQuality} options={['standard','high']} onChange={exportQuality => patch({ exportQuality: exportQuality as ProjectSettings['exportQuality'] })} /></section>
           {!selectedLayer && <section><div className="section-title"><span>Canvas</span><ChevronDown size={14} /></div><SelectRow label="Resolution" value={project.resolution} options={['1280 x 720','1920 x 1080','2560 x 1440','3840 x 2160','1080 x 1920','1080 x 1080']} onChange={value => patch({ resolution: value })} /><SelectRow label="Frame rate" value={`${project.fps} FPS`} options={['30 FPS','60 FPS']} onChange={value => patch({ fps: value.startsWith('30') ? 30 : 60 })} /></section>}
           {project.layers.find(layer => layer.id === selectedLayer)?.kind === 'spectrum' && <section><div className="section-title"><span>Spectrum Options</span><ChevronDown size={14} /></div><SelectRow label="Style" value={project.visualizerType} options={['bars','mirrored-bars','classic-led','waveform','line','radial','radial-inverse','circular-wave','snow-spectrum','dots']} onChange={value => patch({ visualizerType: value as ProjectSettings['visualizerType'] })} /><SelectRow label="Color style" value={project.spectrumColorMode} options={['solid','gradient','rainbow']} onChange={value => patch({ spectrumColorMode: value as ProjectSettings['spectrumColorMode'] })} /><ColorRow label="Primary" value={project.visualizerColor} onChange={value => patch({ visualizerColor: value })} />{project.spectrumColorMode === 'gradient' && <ColorRow label="Secondary" value={project.visualizerColorSecondary} onChange={value => patch({ visualizerColorSecondary: value })} />}<SelectRow label="Reactive effect" value={project.spectrumEffect} options={['none','zoom','pulse','bounce','wave','flicker','glossy','neon']} onChange={value => patch({ spectrumEffect: value as ProjectSettings['spectrumEffect'] })} />{project.spectrumEffect !== 'none' && <><SelectRow label="React to" value={project.spectrumReactiveSource} options={['bass','mid','full']} onChange={value => patch({ spectrumReactiveSource: value as ProjectSettings['spectrumReactiveSource'] })} /><RangeRow label="Effect amount" value={project.spectrumEffectAmount} min={.05} max={1.5} step={.05} onChange={value => patch({ spectrumEffectAmount: value })} /><RangeRow label="Effect speed" value={project.spectrumEffectSpeed} min={.25} max={3} step={.05} onChange={value => patch({ spectrumEffectSpeed: value })} /></>}<RangeRow label="Bars" value={project.bars} min={16} max={180} onChange={value => patch({ bars: value })} /><RangeRow label="Bar thickness" value={project.spectrumBarThickness} min={.5} max={2.5} step={.05} onChange={value => patch({ spectrumBarThickness: value })} /><RangeRow label="Width" value={project.spectrumWidth} min={.2} max={.95} step={.01} onChange={value => patch({ spectrumWidth: value })} /><RangeRow label="Height" value={project.spectrumHeight} min={20} max={240} onChange={value => patch({ spectrumHeight: value })} /><RangeRow label="Gap" value={project.spectrumGap} min={0} max={12} step={.5} onChange={value => patch({ spectrumGap: value })} /><RangeRow label="Sensitivity" value={project.sensitivity} min={.4} max={3} step={.05} onChange={value => patch({ sensitivity: value })} /><RangeRow label="Smoothing" value={project.smoothing} min={0} max={.98} step={.01} onChange={value => patch({ smoothing: value })} /><RangeRow label="Glow" value={project.glow} min={0} max={60} onChange={value => patch({ glow: value })} /></section>}
           {project.layers.find(layer => layer.id === selectedLayer)?.kind === 'cover' && <section><div className="section-title"><span>Cover Art Options</span><ChevronDown size={14} /></div><SelectRow label="Shape" value={project.coverShape} options={['circle','rounded','square']} onChange={value => patch({ coverShape: value as ProjectSettings['coverShape'] })} /><SelectRow label="Reactive effect" value={project.imageReactiveEffect} options={['none','scale','pulse','bounce','shake','tilt','glow','blur','hue','contrast']} onChange={value => patch({ imageReactiveEffect: value as ProjectSettings['imageReactiveEffect'] })} /><RangeRow label="Reaction" value={project.imageReactionAmount} min={.05} max={1.5} step={.05} onChange={value => patch({ imageReactionAmount: value })} /><ToggleRow label="Auto rotation" value={project.coverRotation} onChange={value => patch({ coverRotation: value })} /></section>}
@@ -261,11 +262,11 @@ export default function App() {
         </aside>
       </div>
 
-      <input hidden ref={audioInput} type="file" accept="audio/*,.flac" onChange={e => e.target.files?.[0] && handleAsset(e.target.files[0], 'audio')} />
-      <input hidden ref={coverInput} type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleAsset(e.target.files[0], 'cover')} />
-      <input hidden multiple ref={bgInput} type="file" accept="image/*" onChange={e => e.target.files && handleAssets(e.target.files, 'background')} />
-      <input hidden multiple ref={videoInput} type="file" accept="video/mp4,video/webm,video/quicktime" onChange={e => e.target.files && handleAssets(e.target.files, 'video')} />
-      <input hidden ref={projectInput} type="file" accept=".json" onChange={e => e.target.files?.[0] && loadProject(e.target.files[0])} />
+      <input hidden ref={audioInput} type="file" accept="audio/*,.flac" data-testid="input-audio" onChange={e => e.target.files?.[0] && handleAsset(e.target.files[0], 'audio')} />
+      <input hidden ref={coverInput} type="file" accept="image/*" data-testid="input-cover" onChange={e => e.target.files?.[0] && handleAsset(e.target.files[0], 'cover')} />
+      <input hidden multiple ref={bgInput} type="file" accept="image/*" data-testid="input-images" onChange={e => e.target.files && handleAssets(e.target.files, 'background')} />
+      <input hidden multiple ref={videoInput} type="file" accept="video/mp4,video/webm,video/quicktime" data-testid="input-videos" onChange={e => e.target.files && handleAssets(e.target.files, 'video')} />
+      <input hidden ref={projectInput} type="file" accept=".json" data-testid="input-project" onChange={e => e.target.files?.[0] && loadProject(e.target.files[0])} />
 
       <LayerPanel layers={project.layers} selected={selectedLayer} onSelect={setSelectedLayer} onUpdate={updateLayer} onReorder={layers => patch({ layers })} />
       {exporting && <ExportProgressModal progress={exportProgress} paused={exportPaused} onPause={toggleExportPause} onStop={stopAndSaveExport} onClose={cancelExport} />}
@@ -274,7 +275,7 @@ export default function App() {
 }
 
 function MediaPanel({ audioName, backgroundAssets, selectedAsset, onSelectAsset, onRemoveAsset, onAudio, onCover, onBackground, onVideo }: { audioName: string; backgroundAssets: BackgroundAsset[]; selectedAsset: string; onSelectAsset: (id: string) => void; onRemoveAsset: (id: string) => void; onAudio: () => void; onCover: () => void; onBackground: () => void; onVideo: () => void }) {
-  return <div className="media-panel"><button className="drop-card" onClick={onAudio}><div className="upload-icon"><FileAudio size={21} /></div><b>Import audio</b><span>MP3, WAV, FLAC, AAC, OGG</span><small><Upload size={12} /> Browse files</small></button><h3>PROJECT MEDIA</h3><div className="asset-row"><button onClick={onCover}><FileImage size={18} /><span><b>Cover art</b><small>JPG, PNG, WEBP</small></span><Plus size={15} /></button><button onClick={onBackground}><Image size={18} /><span><b>Add images</b><small>Select multiple files</small></span><Plus size={15} /></button><button onClick={onVideo}><Video size={18} /><span><b>Add videos</b><small>Select multiple files</small></span><Plus size={15} /></button></div>{backgroundAssets.map(asset => <div className={`loaded-audio ${selectedAsset === asset.id ? 'selected' : ''}`} key={asset.id} onClick={() => onSelectAsset(asset.id)}>{asset.type === 'video' ? <Video size={17} /> : <Image size={17} />}<div><b>{asset.name}</b><span>Click to edit {asset.type} options</span></div><button className="icon-button" onClick={event => { event.stopPropagation(); onRemoveAsset(asset.id) }}><X size={14} /></button></div>)}{audioName !== 'No audio loaded' && <div className="loaded-audio"><AudioLines size={17} /><div><b>{audioName}</b><span>Audio track</span></div><CirclePlay size={17} /></div>}</div>
+  return <div className="media-panel"><button className="drop-card" data-testid="btn-import-audio" onClick={onAudio}><div className="upload-icon"><FileAudio size={21} /></div><b>Import audio</b><span>MP3, WAV, FLAC, AAC, OGG</span><small><Upload size={12} /> Browse files</small></button><h3>PROJECT MEDIA</h3><div className="asset-row"><button data-testid="btn-import-cover" onClick={onCover}><FileImage size={18} /><span><b>Cover art</b><small>JPG, PNG, WEBP</small></span><Plus size={15} /></button><button data-testid="btn-import-images" onClick={onBackground}><Image size={18} /><span><b>Add images</b><small>Select multiple files</small></span><Plus size={15} /></button><button data-testid="btn-import-videos" onClick={onVideo}><Video size={18} /><span><b>Add videos</b><small>Select multiple files</small></span><Plus size={15} /></button></div>{backgroundAssets.map(asset => <div className={`loaded-audio ${selectedAsset === asset.id ? 'selected' : ''}`} key={asset.id} onClick={() => onSelectAsset(asset.id)}>{asset.type === 'video' ? <Video size={17} /> : <Image size={17} />}<div><b>{asset.name}</b><span>Click to edit {asset.type} options</span></div><button className="icon-button" onClick={event => { event.stopPropagation(); onRemoveAsset(asset.id) }}><X size={14} /></button></div>)}{audioName !== 'No audio loaded' && <div className="loaded-audio"><AudioLines size={17} /><div><b>{audioName}</b><span>Audio track</span></div><CirclePlay size={17} /></div>}</div>
 }
 
 function LibraryOptions({ title, items, active, onPick }: { title: string; items: string[]; active: number; onPick: (i: number) => void }) {
@@ -299,7 +300,7 @@ function Timeline({ current, duration, playing, onToggle, onSeek }: { current: n
 }
 
 function SelectRow({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) { return <label className="control-row"><span>{label}</span><select value={value} onChange={e => onChange(e.target.value)}>{options.map(o => <option key={o}>{o}</option>)}</select></label> }
-function TextRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) { return <label className="control-row"><span>{label}</span><input className="text-control" value={value} onChange={e => onChange(e.target.value)} /></label> }
+function TextRow({ label, value, onChange, dataTestId }: { label: string; value: string; onChange: (v: string) => void; dataTestId?: string }) { return <label className="control-row"><span>{label}</span><input className="text-control" data-testid={dataTestId} value={value} onChange={e => onChange(e.target.value)} /></label> }
 function TimeRow({ label, value, max, placeholder, onChange }: { label: string; value: number; max: number; placeholder?: string; onChange: (v: number) => void }) { return <label className="control-row"><span>{label}</span><input className="text-control" type="number" min={0} max={max || undefined} step={.1} value={value || ''} placeholder={placeholder || '0 seconds'} onChange={e => onChange(Math.max(0, Number(e.target.value) || 0))} /></label> }
 function RangeRow({ label, value, min, max, step=1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void }) { return <div className="range-row"><div><span>{label}</span><output>{Number.isInteger(value) ? value : value.toFixed(2)}</output></div><input type="range" value={value} min={min} max={max} step={step} onChange={e => onChange(Number(e.target.value))} /></div> }
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) { return <label className="color-row"><span>{label}</span><div><input type="color" value={value} onChange={e => onChange(e.target.value)} /><code>{value.toUpperCase()}</code></div></label> }
